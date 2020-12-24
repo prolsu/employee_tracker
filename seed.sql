@@ -27,8 +27,7 @@ CREATE TABLE employee (
     PRIMARY KEY (id)
 );
 
-INSERT INTO department (dept_name) VALUES("Human Resources"),("Accounting"),("IT");
-INSERT INTO role_info (title, salary, department_id) VALUES ("Director of HR", 80000.00, 11);
+
 SELECT * FROM department;
 SELECT * FROM role_info;
 
