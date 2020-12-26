@@ -27,7 +27,7 @@ CREATE TABLE employee (
     PRIMARY KEY (id)
 );
 
+-- INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("Pedro", "Alburqueque", 100, 50);
 
-SELECT * FROM department;
-SELECT * FROM role_info;
-
+-- SELECT * FROM department;
+-- SELECT * FROM employee;
