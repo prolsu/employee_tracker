@@ -27,11 +27,14 @@ function startEmployeeTracker() {
         type: 'list',
         name: 'action',
         message: 'What would you like to do?',
-        choices: ['Add', 'View', 'Delete', 'Update EE Roles', 'Exit'],
+        choices: ['Company Overview','Add', 'View', 'Delete', 'Update EE Roles', 'Exit'],
       },
     ]).then((chosen) => {
       // console.log(chosen);
       switch (chosen.action) {
+        case 'Company Overview':
+          displayCompany()
+          break
         case 'Add':
           addingActions();
           break
@@ -50,6 +53,22 @@ function startEmployeeTracker() {
       }
     })
 };
+
+function displayCompany() {
+  connection.query(`SELECT first_name, last_name, title, salary, department_id, dept_name FROM employee
+  INNER JOIN role_info ON employee.role_id = role_info.id
+  INNER JOIN department ON role_info.department_id = department.id;`,
+    (err, res) => {
+      if (err) throw err;
+      if (res[0] == null) {
+        console.log("Company information is not readily available..\nPlease make the necessary entries for 'Departments', 'Employees', and 'Roles'\n");
+        startEmployeeTracker();
+      } else {
+        console.table(res);
+        startEmployeeTracker();
+      }
+    })
+}
 
 function addingActions() {
   inquirer

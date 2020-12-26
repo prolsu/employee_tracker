@@ -27,7 +27,10 @@ CREATE TABLE employee (
     PRIMARY KEY (id)
 );
 
--- INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("Pedro", "Alburqueque", 100, 50);
-
 -- SELECT * FROM department;
+-- SELECT * FROM role_info;
 -- SELECT * FROM employee;
+
+-- SELECT first_name, last_name, title, salary, department_id, dept_name  FROM employee
+-- INNER JOIN role_info ON employee.role_id = role_info.id
+-- INNER JOIN department ON role_info.department_id = department.id;
