@@ -31,6 +31,6 @@ CREATE TABLE employee (
 -- SELECT * FROM role_info;
 -- SELECT * FROM employee;
 
--- SELECT first_name, last_name, title, salary, department_id, dept_name  FROM employee
+-- SELECT first_name, last_name, title, salary, department_id, dept_name FROM employee
 -- INNER JOIN role_info ON employee.role_id = role_info.id
 -- INNER JOIN department ON role_info.department_id = department.id;
