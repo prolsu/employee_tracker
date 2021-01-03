@@ -473,9 +473,8 @@ function deleteRoles() {
         console.log("No Roles available to delete yet..\n");
         startEmployeeTracker();
       } else {
-        console.table(res);
         const availableChoices = [];
-        res.forEach(role => availableChoices.push(role.id));
+        res.forEach(role => availableChoices.push(role.id + " " + role.title));
 
         inquirer
           .prompt([
@@ -487,7 +486,7 @@ function deleteRoles() {
             }
           ]).then((role) => {
             connection.query("DELETE FROM role_info WHERE ?", {
-              id: role.roleId
+              id: role.roleId[0]
             },
               function (err, res) {
                 if (err) throw err;
@@ -507,7 +506,7 @@ function updateActions() {
         type: 'list',
         name: 'toUpdate',
         message: 'What would you like to update?',
-        choices: ['EE Names', 'EE Role/Title', 'Salaries', 'Department', 'Restart App']
+        choices: ['EE Names', 'EE Role/Title', 'Department Roles','Salaries', 'Department', 'Restart App']
       }
     ]).then((data) => {
       switch (data.toUpdate) {
@@ -516,6 +515,9 @@ function updateActions() {
           break
         case 'EE Role/Title':
           updateRole();
+          break
+        case 'Department Roles':
+          updateDepartmentRoles();
           break
         case 'Salaries':
           updateSalary();
@@ -641,7 +643,14 @@ function updateRole() {
                 ], function (err, res) {
                   if (err) throw err;
                   if (data.roleId[0] == 0) {
-                    addRoles();
+                    console.log(`Create a role for this employee now\n`)
+                    let lastName = [];
+                    for (let i = 0; i < data.employeeId.length; i++) {
+                      lastName.push(data.employeeId[i]);
+                    }
+                    lastName = lastName.filter(x => isNaN(x) && x != ':');
+                    const filteredName = lastName.join("");
+                    addRoles(filteredName);
                   } else {
                     console.log(`Succesfully updated '${data.employeeId}'`)
                     startEmployeeTracker();
@@ -652,6 +661,48 @@ function updateRole() {
         })
       }
     })
+};
+
+function updateDepartmentRoles() {
+  connection.query('SELECT * FROM role_info', (err, res) => {
+    if (err) throw err;
+    let roles = [];
+    res.forEach(role => roles.push(`${role.id}:${role.title}`));
+    let departments = [];
+    connection.query('SELECT * FROM department',(err,res)=> {
+      if (err) throw err;
+      res.forEach(department => departments.push(department.id + ' ' + department.dept_name))
+    })
+    inquirer
+     .prompt([
+       {
+         type: 'list',
+         name: 'roleToUpdate',
+         message: 'Which role would you like to update?',
+         choices: roles
+       },
+       {
+         type: 'list',
+         name: 'departmentToMatch',
+         message: 'Assign a department for this role: ',
+         choices: departments
+       }
+     ]).then((response) => {
+       connection.query("UPDATE role_info SET ? WHERE ?",
+       [
+         {
+           department_id: response.departmentToMatch[0]
+         },
+         {
+           id: response.roleToUpdate[0]
+         }
+       ], (err, res) => {
+         if(err) throw err;
+         console.log('Success updated department Roles');
+         startEmployeeTracker();
+       })
+     }); 
+  })
 };
 
 function updateSalary() {
