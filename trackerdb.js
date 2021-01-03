@@ -27,7 +27,7 @@ function startEmployeeTracker() {
         type: 'list',
         name: 'action',
         message: 'What would you like to do?',
-        choices: ['Company Overview', 'Add', 'View', 'Delete', 'Update Info', 'Exit'],
+        choices: ['Company Overview', 'Add', 'View', 'Delete', 'Update', 'Exit'],
       },
     ]).then((chosen) => {
       // console.log(chosen);
@@ -44,7 +44,7 @@ function startEmployeeTracker() {
         case 'Delete':
           deleteActions();
           break
-        case 'Update Info':
+        case 'Update':
           updateActions();
           break
         case 'Exit':
@@ -55,7 +55,7 @@ function startEmployeeTracker() {
 };
 
 function displayCompany() {
-  connection.query(`SELECT first_name, last_name, title, salary, department_id, dept_name FROM employee
+  connection.query(`SELECT first_name, last_name, title, salary, department_id, dept_name, manager_id FROM employee
   INNER JOIN role_info ON employee.role_id = role_info.id
   INNER JOIN department ON role_info.department_id = department.id;`,
     (err, res) => {
@@ -68,7 +68,7 @@ function displayCompany() {
         startEmployeeTracker();
       }
     })
-}
+};
 
 function addingActions() {
   inquirer
@@ -103,7 +103,6 @@ function addingActions() {
 };
 
 function addDepartments() {
-  console.log("** Adding Departments **\n");
   inquirer
     .prompt([
       {
@@ -115,6 +114,12 @@ function addDepartments() {
           return valid || 'Please enter a valid Department name';
         }
       },
+      {
+        type: 'list',
+        name: 'addDept',
+        message: 'Are you adding any other departments?',
+        choices: ['Yes', 'No']
+      }
     ]).then((chosen) => {
       // console.log(chosen);
       connection.query("INSERT INTO department SET ?", {
@@ -123,92 +128,29 @@ function addDepartments() {
         (err, res) => {
           if (err) throw err;
           console.log(`'${chosen.department}' Department Added\n`);
-          startEmployeeTracker();
+          if (chosen.addDept == 'Yes') {
+            addDepartments();
+          } else {
+            startEmployeeTracker();
+          };
         });
     });
 };
 
-function addEmployees() {
-  connection.query("SELECT * FROM role_info",
+function addRoles(lastname) {
+  let applyToThisPerson = "";
+  if (lastname) {
+    applyToThisPerson = lastname;
+  }
+  connection.query(`SELECT * FROM department`,
     function (err, res) {
       if (err) throw err;
       if (res[0] == null) {
-        console.log("Please create a Role first.")
-        addRoles();
-      } else {
-        connection.query("SELECT * FROM employee",
-          function (err, resManagers) {
-            if (err) throw err;
-            console.log("** Adding Employees **\n");
-            
-            let managers = ["0: Employee is a Manager or Manager will be added later"]
-            resManagers.forEach(manager => managers.push(`${manager.id}:${manager.last_name}`))
-
-            let roles = ["0: Role will be added later"];
-            res.forEach(role => roles.push(`${role.id}:${role.title}`))
-
-            inquirer
-              .prompt([
-                {
-                  type: 'list',
-                  name: 'roleId',
-                  message: `Please select the employee's Role: `,
-                  choices: roles
-                },
-                {
-                  type: 'list',
-                  name: 'mgrId',
-                  message: `Please select the employee's Manager: `,
-                  choices: managers
-                },
-                {
-                  type: 'input',
-                  name: 'firstName',
-                  message: `Employee's first name: `,
-                  validate: function (firstName) {
-                    const valid = firstName.length > 1 && isNaN(firstName);
-                    return valid || 'Please enter a valid Employee name';
-                  }
-                },
-                {
-                  type: 'input',
-                  name: 'lastName',
-                  message: `Last name: `,
-                  validate: function (lastName) {
-                    const valid = lastName.length > 1 && isNaN(lastName);
-                    return valid || 'Please enter a valid Employee name'
-                  }
-                }
-              ]).then((employee) => {
-                const roleId = employee.roleId[0];
-                const mgrId = employee.mgrId[0];
-
-                connection.query("INSERT INTO employee SET ?", {
-                  first_name: employee.firstName,
-                  last_name: employee.lastName,
-                  role_id: roleId,
-                  manager_id: mgrId
-                }, (err, res) => {
-                  if (err) throw err;
-                  console.log(`'${employee.lastName}, ${employee.firstName} ' Added to 'Employees Table'\n`);
-                  startEmployeeTracker();
-                });
-              })
-          })
-      }
-    })
-
-};
-
-function addRoles() {
-  connection.query("SELECT * FROM department",
-    function (err, res) {
-      if (err) throw err;
-      if (res[0] == null) {
-        console.log("Please create a Department first.")
+        console.log("Please create a Department first.\n")
         addDepartments();
       } else {
-        console.log("** Adding Roles **\n");
+        let roles = [];
+        res.forEach(role => roles.push(`${role.id}:${role.title}`));
 
         let departments = ["0: Department will be added later"];
         res.forEach(department => departments.push(`${department.id}:${department.dept_name}`))
@@ -239,20 +181,112 @@ function addRoles() {
               }
             }
           ]).then((info) => {
-            const department = info.department[0];
             connection.query("INSERT INTO role_info SET ?", {
               title: info.title,
               salary: info.salary,
-              department_id: department
-            },
-              (err, res) => {
-                if (err) throw err;
-                console.log(`'${info.title}' Succesfully Added\n`);
+              department_id: info.department[0]
+            }, (err, res) => {
+              if (err) throw err;
+              if (applyToThisPerson != "") {
+                connection.query(`SELECT role_info.id, title, dept_name FROM role_info
+                LEFT JOIN department ON department_id = department.id`, (err, res) => {
+                  if (err) throw err;
+                  let positionCount = res.length;
+                  connection.query('UPDATE employee SET ? WHERE ?',
+                  [
+                    {
+                      role_id: positionCount
+                    },
+                    {
+                      last_name: applyToThisPerson
+                    }
+                  ], function (err, res) {
+                    if (err) throw err;
+                    console.log(`'${info.title}' Succesfully Added and assigned to '${lastname}'\n`);
+                    startEmployeeTracker();
+                  })
+                })
+              } else {
+                console.log(`'${info.title}' was succesfully added.\n`);
                 startEmployeeTracker();
-              });
+              }
+            });
           });
       };
     })
+};
+
+function addEmployees() {
+  connection.query("SELECT * FROM role_info",
+    function (err, res) {
+      if (err) throw err;
+      if (res[0] == null) {
+        console.log("Please create a Role first.\n")
+        addRoles();
+      } else {
+        connection.query("SELECT * FROM employee",
+          function (err, resManagers) {
+            if (err) throw err;
+
+            let managers = ["0: Employee is a Manager or Manager will be assigned later",]
+            resManagers.forEach(manager => managers.push(`${manager.id}:${manager.last_name}`))
+
+            let roles = ["0: Role will be added later"];
+            res.forEach(role => roles.push(`${role.id}:${role.title}`))
+
+            inquirer
+              .prompt([
+                {
+                  type: 'list',
+                  name: 'roleId',
+                  message: `Please select the employee's Role: `,
+                  choices: roles
+                },
+                {
+                  type: 'list',
+                  name: 'mgrId',
+                  message: `Please select the employee's Manager: `,
+                  choices: managers
+                },
+                {
+                  type: 'input',
+                  name: 'lastName',
+                  message: `Employee's last name: `,
+                  validate: function (lastName) {
+                    const valid = lastName.length > 1 && isNaN(lastName);
+                    return valid || 'Please enter a valid Employee name'
+                  }
+                },
+                {
+                  type: 'input',
+                  name: 'firstName',
+                  message: `Employee's first name: `,
+                  validate: function (firstName) {
+                    const valid = firstName.length > 1 && isNaN(firstName);
+                    return valid || 'Please enter a valid Employee name';
+                  }
+                }
+              ]).then((employee) => {
+                  connection.query("INSERT INTO employee SET ?", {
+                    first_name: employee.firstName,
+                    last_name: employee.lastName,
+                    role_id: employee.roleId[0],
+                    manager_id: employee.mgrId[0]
+                  }, (err, res) => {
+                    if (err) throw err;
+
+                    if (employee.roleId[0] == 0) {
+                      console.log(`'${employee.lastName}, ${employee.firstName}' Added to 'Employees Table'\nPlease add a Role/Title now\n`);
+                      addRoles(employee.lastName);
+                    } else {
+                      console.log(`'${employee.lastName}, ${employee.firstName} ' Added to 'Employees Table'\n`);
+                      startEmployeeTracker();
+                    }
+                  });
+              });
+          });
+      };
+    });
 };
 
 function viewActions() {
@@ -262,7 +296,7 @@ function viewActions() {
         type: 'list',
         name: 'toView',
         message: 'What would you like to review?',
-        choices: ['Departments', 'Employees', 'Roles', 'Restart App', 'Exit']
+        choices: ['Departments', 'Roles', 'Employees', 'Restart App', 'Exit']
       }
     ]).then((chosen) => {
       //console.log(chosen);
@@ -371,7 +405,6 @@ function deleteDepartments() {
         console.log("No Departments available to delete yet..\n");
         startEmployeeTracker();
       } else {
-        console.log("** Deleting a Department **\n");
         const departments = [];
         res.forEach(department => departments.push(`${department.id}:${department.dept_name}`));
         inquirer
@@ -440,7 +473,6 @@ function deleteRoles() {
         console.log("No Roles available to delete yet..\n");
         startEmployeeTracker();
       } else {
-        console.log("** Deleting a Role **\n");
         console.table(res);
         const availableChoices = [];
         res.forEach(role => availableChoices.push(role.id));
@@ -475,20 +507,17 @@ function updateActions() {
         type: 'list',
         name: 'toUpdate',
         message: 'What would you like to update?',
-        choices: ['EE Name', 'EE Role', 'Title', 'Salary', 'Department', 'Restart App']
+        choices: ['EE Names', 'EE Role/Title', 'Salaries', 'Department', 'Restart App']
       }
     ]).then((data) => {
       switch (data.toUpdate) {
-        case 'EE Name':
+        case 'EE Names':
           updateName();
           break
-        case 'EE Role':
+        case 'EE Role/Title':
           updateRole();
           break
-        case 'Title':
-          updateTitle();
-          break
-        case 'Salary':
+        case 'Salaries':
           updateSalary();
           break
         case 'Department':
@@ -524,6 +553,7 @@ function updateName() {
               type: 'input',
               name: 'newFirstName',
               message: 'Please enter the updated first name: ',
+              default: 'Same last name',
               validate: function (name) {
                 const valid = name.length > 2 && isNaN(name);
                 return valid || 'Please enter a valid Name';
@@ -532,7 +562,7 @@ function updateName() {
             {
               type: 'input',
               name: 'newLastName',
-              message: 'Please enter the updated last name now ',
+              message: 'Please enter the updated last name now: ',
               validate: function (name) {
                 const valid = name.length > 2 && isNaN(name);
                 return valid || 'Please enter a valid Name';
@@ -583,7 +613,7 @@ function updateRole() {
 
           const employees = [];
           res.forEach(employee => employees.push(`${employee.id}:${employee.last_name}`));
-          let roles = ["0:Role not available and will be added later"];
+          let roles = ["0:Role not available and needs to be added"];
           response.forEach(role => roles.push(`${role.id}:${role.title}`));
           inquirer
             .prompt([
@@ -610,15 +640,123 @@ function updateRole() {
                   }
                 ], function (err, res) {
                   if (err) throw err;
-                  console.log(`Succesfully updated '${data.employeeId}'`)
-                  startEmployeeTracker();
+                  if (data.roleId[0] == 0) {
+                    addRoles();
+                  } else {
+                    console.log(`Succesfully updated '${data.employeeId}'`)
+                    startEmployeeTracker();
+                  }
                 })
             })
 
         })
       }
     })
-}
+};
+
+function updateSalary() {
+  connection.query(`SELECT role_info.id, title, salary, dept_name FROM role_info
+  INNER JOIN department ON role_info.department_id = department.id`, (err, res) => {
+
+    if (err) throw err;
+    if (!res[0]) {
+      console.log("No Salaries available to update yet..\n")
+      startEmployeeTracker();
+    } else {
+      const salaries = [];
+      res.forEach(position => salaries.push(`${position.id}:${position.title} from Departent: ${position.dept_name} & Salary: $${position.salary}`));
+
+      inquirer
+        .prompt([
+          {
+            type: 'list',
+            name: 'titleId',
+            message: 'Which salary are you updating?',
+            choices: salaries
+          },
+          {
+            type: 'input',
+            name: 'newSalary',
+            message: 'Please enter a new Salary amount: ',
+            validate: function (salary) {
+              const valid = salary > 0 && !isNaN(salary);
+              return valid || 'Please enter a valid amount'
+            }
+          }
+        ]).then((data) => {
+          connection.query("UPDATE role_info SET ? WHERE ?",
+            [
+              {
+                salary: data.newSalary
+              },
+              {
+                id: data.titleId[0]
+              }
+            ], function (err, res) {
+            if (err) throw err;
+            console.log(`Succesfully updated. New Salary is '$${data.newSalary}'`)
+            startEmployeeTracker();
+          })
+        })
+    }
+  })
+};
+
+function updateDepartment() {
+  connection.query(`SELECT * FROM department`, (err, res) => {
+    if (err) throw err;
+    const departments = [];
+    res.forEach(department => departments.push(`${department.id}:${department.dept_name}`));
+
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'previousName',
+          message: 'What department are you updating?',
+          choices: departments
+        },
+        {
+          type: 'input',
+          name: 'newName',
+          message: `What's the updated department name?`,
+          validate: function (data) {
+            const valid = data.length > 1 && isNaN(data);
+            return valid || 'Please enter a valid name.'
+          }
+        },
+        {
+          type: 'list',
+          name: 'confirm',
+          message: `Would you like to update another department?`,
+          choices: ['Yes', 'No']
+        }
+      ]).then((response) => {
+        connection.query('UPDATE department SET ? WHERE ?',
+        [
+          {
+            dept_name: response.newName
+          },
+          {
+            id: response.previousName[0]
+          }
+        ], (err, res) => {
+          if (err) throw err;
+          switch (response.confirm) {
+            case 'Yes':
+              console.log(`'${response.previousName}' was succesfully updated to '${response.newName}'`);
+              updateDepartment();
+              break
+            case 'No':
+              console.log(`'${response.previousName}' was succesfully updated to '${response.newName}'`);
+              startEmployeeTracker();
+              break
+          }
+        })
+      })
+    
+  })
+};
 
 function exitApplication() {
   console.log(`Thanks for visiting the 'Employee Tracker App'`);

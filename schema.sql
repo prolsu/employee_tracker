@@ -27,11 +27,9 @@ CREATE TABLE employee (
     PRIMARY KEY (id)
 );
 
-SELECT * FROM department;
-SELECT * FROM role_info;
-SELECT * FROM employee;
-
-SELECT department.id, dept_name, role_info.id, title FROM department LEFT JOIN role_info ON department.id = role_info.department_id;
+-- SELECT * FROM department;
+-- SELECT * FROM role_info;
+-- SELECT * FROM employee;
 
 -- SELECT first_name, last_name, title, salary, department_id, dept_name, manager_id FROM employee
 -- INNER JOIN role_info ON employee.role_id = role_info.id
